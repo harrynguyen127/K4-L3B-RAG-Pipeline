@@ -49,8 +49,20 @@ def _get_bm25_index(corpus: list[dict]) -> BM25Okapi | None:
     return _CACHED_BM25
 
 
+def _ensure_corpus() -> None:
+    """Tự động tải corpus từ Task 4 nếu chưa được nạp sẵn."""
+    global CORPUS
+    if not CORPUS:
+        try:
+            from src.task4_chunking_indexing import chunk_documents, load_documents
+            CORPUS = chunk_documents(load_documents())
+        except Exception:
+            pass
+
+
 def lexical_search(query: str, top_k: int = 10) -> list[dict]:
     """Trả về BM25 SearchResult theo score giảm dần."""
+    _ensure_corpus()
     if not CORPUS or top_k <= 0:
         return []
 
