@@ -128,6 +128,8 @@ def load_documents() -> list[dict]:
 
 def chunk_documents(documents: list[dict]) -> list[dict]:
     """Chia Document thành chunks có id và chunk_index liên tục."""
+    from langchain_text_splitters import RecursiveCharacterTextSplitter
+
     splitter = RecursiveCharacterTextSplitter(
         chunk_size=CHUNK_SIZE,
         chunk_overlap=CHUNK_OVERLAP,
@@ -285,12 +287,7 @@ def run_pipeline() -> None:
     chunks = chunk_documents(documents)
     embedded_chunks = embed_chunks(chunks)
     index_to_vectorstore(embedded_chunks)
-<<<<<<< HEAD
     print(f"Indexed {len(embedded_chunks)} chunks from {len(documents)} documents")
-=======
-    print(f"Indexed {len(embedded_chunks)} chunks from {len(documents)} documents.")
-    return chunks
->>>>>>> 726ca6ee44391917fa9199d0f20d95577e0280fa
 
 
 if __name__ == "__main__":
