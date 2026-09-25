@@ -12,7 +12,7 @@ from urllib.parse import urlparse
 import streamlit as st
 from dotenv import load_dotenv
 
-from src.ui_support import AGENT_STAGES, get_project_snapshot, run_rag_query
+from src.ui_support import AGENT_STAGES, get_golden_questions_vi, get_project_snapshot, run_rag_query
 
 
 load_dotenv()
@@ -290,6 +290,8 @@ def render_sources(sources: list[dict], retrieval_source: str) -> None:
         st.caption("Chưa có nguồn được sử dụng cho câu trả lời này.")
         return
     with st.expander(f"Nguồn đã dùng · {len(sources)} · {retrieval_source}", expanded=True):
+        if retrieval_source == "hybrid":
+            st.caption("Điểm RRF chuẩn hóa trên thang 0–100; đây không phải xác suất đúng.")
         for index, source in enumerate(sources, 1):
             metadata = source.get("metadata", {})
             title = escape(str(metadata.get("title", "Không có tiêu đề")))
@@ -297,15 +299,25 @@ def render_sources(sources: list[dict], retrieval_source: str) -> None:
             url = metadata.get("url")
             method = escape(str(source.get("retrieval_method", "unknown")))
             score = source.get("score")
-            score_text = f"{score:.4f}" if isinstance(score, (int, float)) else "n/a"
+            if isinstance(score, (int, float)) and source.get("retrieval_method") == "hybrid":
+                # RRF k=60 from two lists has theoretical maximum 2 / 61.
+                # Scale to that maximum for display; preserve the raw score in the API result.
+                score_100 = min(100.0, max(0.0, score * 61 * 50))
+                score_text = f"{score_100:.1f}/100 (RRF)"
+            else:
+                score_text = f"{score:.4f}" if isinstance(score, (int, float)) else "n/a"
             parsed_url = urlparse(url) if isinstance(url, str) else None
             safe_url = escape(url, quote=True) if parsed_url and parsed_url.scheme in {"http", "https"} else None
             link = f'<a href="{safe_url}" target="_blank" rel="noopener">Mở nguồn</a>' if safe_url else "Không có URL"
             st.markdown(
-                f"""<div class="source-card"><strong>[{index}] {title}</strong>
+                f"""<div class="source-card"><strong>[S{index}] {title}</strong>
                 <div class="source-meta">{origin} · {method} · score {score_text} · {link}</div></div>""",
                 unsafe_allow_html=True,
             )
+            content_vi = source.get("content", "")
+            if content_vi:
+                st.caption(f"Nội dung chunk · {source.get('id', '')}")
+                st.markdown(content_vi)
 
 
 def render_chat(top_k: int) -> None:
@@ -314,15 +326,20 @@ def render_chat(top_k: int) -> None:
         "Câu trả lời chỉ nên dựa trên evidence đã truy xuất. Mỗi nguồn hiển thị title, "
         "URL, retrieval method và score để có thể kiểm chứng khi demo.",
     )
-    examples = (
-        "Band 7 Task Response khác Band 6 ở điểm nào?",
-        "Coherence and Cohesion được đánh giá như thế nào?",
-        "Bài mẫu này cần cải thiện Lexical Resource ở đâu?",
-    )
-    st.caption("Câu hỏi gợi ý")
-    for index, (column, example) in enumerate(zip(st.columns(3), examples)):
-        if column.button(example, use_container_width=True, key=f"example-{index}"):
-            st.session_state.pending_query = example
+    examples = get_golden_questions_vi()[:4]
+    if examples:
+        with st.expander("Câu hỏi gợi ý", expanded=True):
+            labels = [f"{item['id']} · {item['question']}" for item in examples]
+            selected = st.selectbox(
+                "Chọn một câu để hỏi",
+                range(len(examples)),
+                format_func=lambda index: labels[index],
+                label_visibility="collapsed",
+                key="suggested-question",
+            )
+            if st.button("Hỏi câu này", use_container_width=True, key="ask-suggested-question"):
+                st.session_state.pending_query = examples[selected]["question"]
+                st.rerun()
     for message in st.session_state.messages:
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
@@ -355,11 +372,11 @@ snapshot = get_project_snapshot()
 with st.sidebar:
     st.markdown("# IELTS Writing")
     st.caption("RAG agent workspace")
-    page = st.radio("Đi đến", ("Quy trình Agent", "Chat demo"), label_visibility="collapsed")
+    page = st.radio("Đi đến", ("Quy trình Agent", "Chat demo"), index=1, label_visibility="collapsed")
     st.divider()
     if page == "Chat demo":
         top_k = st.slider("Số chunks truy xuất", 3, 10, 5)
-        st.caption("Dùng chung cho dense, BM25 và generation khi pipeline được nối.")
+        st.caption("Áp dụng cho dense, BM25, hybrid và các nguồn gửi vào câu trả lời.")
         if st.button("Xóa lịch sử chat", use_container_width=True):
             st.session_state.messages = []
             st.rerun()
