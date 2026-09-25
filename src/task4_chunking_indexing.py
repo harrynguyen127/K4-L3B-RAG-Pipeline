@@ -17,175 +17,143 @@ load_dotenv()
 
 STANDARDIZED_DIR = Path(__file__).parent.parent / "data" / "standardized"
 CHROMA_DIR = Path(__file__).parent.parent / "chroma_db"
-CHUNK_SIZE = 1200
-CHUNK_OVERLAP = 0
-CHUNKING_METHOD = "markdown_section_recursive"
-EMBEDDING_PROVIDER = os.getenv("EMBEDDING_PROVIDER", "sentence_transformers").strip().lower()
-EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "BAAI/bge-m3").strip()
-EMBEDDING_DIM = 1024
+
+CHUNK_SIZE = 500
+CHUNK_OVERLAP = 50
+CHUNKING_METHOD = "recursive"
+
+EMBEDDING_PROVIDER = os.getenv("EMBEDDING_PROVIDER", "sentence_transformers")
+EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "all-MiniLM-L6-v2")
+EMBEDDING_DIM = 384
+
 COLLECTION_NAME = "rag_documents"
 UPSERT_BATCH_SIZE = 100
 
-
-def _metadata_value(content: str, label: str) -> str | None:
-    match = re.search(rf"^\*\*{re.escape(label)}:\*\*\s*(.*?)\s*$", content, re.MULTILINE)
-    if not match:
-        return None
-    value = match.group(1).strip()
-    if value.startswith("<") and value.endswith(">"):
-        value = value[1:-1].strip()
-    elif value.startswith("`") and value.endswith("`"):
-        value = value[1:-1].strip()
-    return value or None
+_MODEL_INSTANCE = None
 
 
-def _parse_url(content: str) -> str | None:
-    source = _metadata_value(content, "Source")
-    if source and urlparse(source).scheme in {"http", "https"}:
-        return source
-    return None
+def _get_embedding_model():
+    global _MODEL_INSTANCE
+    if _MODEL_INSTANCE is not None:
+        return _MODEL_INSTANCE
+    from sentence_transformers import SentenceTransformer
+    # Dùng model gọn nhẹ, hiệu năng cao hoặc model cấu hình trong .env
+    model_name = EMBEDDING_MODEL if EMBEDDING_MODEL and "bge-m3" not in EMBEDDING_MODEL else "all-MiniLM-L6-v2"
+    _MODEL_INSTANCE = SentenceTransformer(model_name)
+    return _MODEL_INSTANCE
+
+
+def embed_texts(texts: list[str]) -> list[list[float]]:
+    """Tạo embeddings cho danh sách văn bản theo provider trong .env."""
+    if not texts:
+        return []
+
+    provider = os.getenv("EMBEDDING_PROVIDER", EMBEDDING_PROVIDER).lower()
+
+    if provider == "openai":
+        from openai import OpenAI
+        client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+        response = client.embeddings.create(
+            input=texts,
+            model=os.getenv("EMBEDDING_MODEL", "text-embedding-3-small"),
+        )
+        return [item.embedding for item in response.data]
+
+    if provider == "gemini":
+        from google import genai
+        client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+        result = client.models.embed_content(
+            model=os.getenv("EMBEDDING_MODEL", "text-embedding-004"),
+            contents=texts,
+        )
+        return [e.values for e in result.embeddings]
+
+    # Mặc định: sentence_transformers
+    model = _get_embedding_model()
+    embeddings = model.encode(texts, show_progress_bar=False)
+    return embeddings.tolist()
+
+
+def get_collection():
+    """Mở Chroma collection dùng cosine distance."""
+    CHROMA_DIR.mkdir(parents=True, exist_ok=True)
+    client = chromadb.PersistentClient(path=str(CHROMA_DIR))
+    return client.get_or_create_collection(
+        name=COLLECTION_NAME,
+        metadata={"hnsw:space": "cosine"},
+    )
 
 
 def load_documents() -> list[dict]:
-    """Read all standardized Markdown and recover source metadata."""
-    if not STANDARDIZED_DIR.is_dir():
-        raise FileNotFoundError(f"Standardized data directory not found: {STANDARDIZED_DIR}")
-
+    """Đọc Markdown và trả về danh sách Document theo contract."""
     documents: list[dict] = []
+    if not STANDARDIZED_DIR.exists():
+        return documents
+
     for path in sorted(STANDARDIZED_DIR.rglob("*.md")):
-        if not path.is_file() or path.name.startswith("."):
-            continue
-        content = path.read_text(encoding="utf-8-sig").strip()
-        if not content:
+        raw_content = path.read_text(encoding="utf-8").strip()
+        if not raw_content:
             continue
 
-        relative_path = path.relative_to(STANDARDIZED_DIR).as_posix()
-        path_parts = Path(relative_path).parts
-        folder_type = path_parts[0] if path_parts else ""
-        doc_type = _metadata_value(content, "Document type") or (
-            "legal" if folder_type == "legal" else "news"
-        )
-        if doc_type not in {"legal", "news"}:
-            doc_type = "legal" if folder_type == "legal" else "news"
-        title_match = re.search(r"^#\s+(.+?)\s*$", content, re.MULTILINE)
-        title = (title_match.group(1).strip() if title_match else path.stem.replace("_", " "))
-        document = {
-            "id": relative_path,
-            "content": content,
+        doc_type = "legal" if "legal" in str(path.parent) else "news"
+        title = path.stem.replace("-", " ").replace("_", " ").title()
+        url = None
+
+        # Trích xuất metadata từ phần header của file nếu có
+        url_match = re.search(r"\*\*Source:\*\*\s*(https?://[^\s\n]+)", raw_content)
+        if url_match:
+            url = url_match.group(1).strip()
+
+        title_match = re.search(r"^#\s+(.+)$", raw_content, re.MULTILINE)
+        if title_match:
+            title = title_match.group(1).strip()
+
+        doc_id = path.relative_to(STANDARDIZED_DIR).as_posix().replace("/", "_").replace(".md", "")
+
+        doc = {
+            "id": doc_id,
+            "content": raw_content,
             "metadata": {
-                "source": relative_path,
+                "source": path.name,
                 "title": title,
                 "doc_type": doc_type,
-                "url": _parse_url(content),
+                "url": url,
             },
         }
-        validate_document(document)
-        documents.append(document)
+        validate_document(doc, require_chunk=False)
+        documents.append(doc)
+
     return documents
 
 
-def _markdown_sections(content: str) -> list[tuple[list[str], str]]:
-    """Group Markdown body text by heading path, excluding copied metadata."""
-    sections: list[tuple[list[str], str]] = []
-    headings: dict[int, str] = {}
-    body_lines: list[str] = []
-
-    def flush() -> None:
-        body = "\n".join(body_lines).strip()
-        if body:
-            sections.append((list(headings[level] for level in sorted(headings)), body))
-        body_lines.clear()
-
-    for line in content.splitlines():
-        heading = re.match(r"^(#{1,6})\s+(.+?)\s*#*\s*$", line)
-        if heading:
-            flush()
-            level = len(heading.group(1))
-            for old_level in [item for item in headings if item >= level]:
-                del headings[old_level]
-            headings[level] = heading.group(2).strip()
-            continue
-        if re.match(r"^\*\*(?:Source|Crawled|Document type):\*\*", line.strip(), re.IGNORECASE):
-            continue
-        if line.strip() == "---":
-            continue
-        body_lines.append(line)
-    flush()
-    return sections
-
-
-def _markdown_blocks(body: str) -> list[str]:
-    """Split paragraphs while keeping adjacent Markdown list items together."""
-    raw_blocks = [part.strip() for part in re.split(r"\n\s*\n+", body) if part.strip()]
-    blocks: list[str] = []
-    for block in raw_blocks:
-        lines = [line.strip() for line in block.splitlines() if line.strip()]
-        is_list = bool(lines) and all(
-            re.match(r"^(?:[-*+]\s+|\d+[.)]\s+)", line) for line in lines
-        )
-        if is_list and blocks and all(
-            re.match(r"^(?:[-*+]\s+|\d+[.)]\s+)", line)
-            for line in blocks[-1].splitlines()
-        ):
-            blocks[-1] += "\n" + "\n".join(lines)
-        else:
-            blocks.append("\n".join(lines))
-    return blocks
-
-
 def chunk_documents(documents: list[dict]) -> list[dict]:
-    """Chunk Markdown by section and paragraph, carrying heading context forward."""
-    from langchain_text_splitters import RecursiveCharacterTextSplitter
-
+    """Chia Document thành chunks có id và chunk_index liên tục."""
+    splitter = RecursiveCharacterTextSplitter(
+        chunk_size=CHUNK_SIZE,
+        chunk_overlap=CHUNK_OVERLAP,
+        separators=["\n\n", "\n", ". ", " ", ""],
+    )
     chunks: list[dict] = []
-    seen_ids: set[str] = set()
-    for document in documents:
-        validate_document(document)
-        pieces: list[tuple[str, str]] = []
-        for section_path, body in _markdown_sections(document["content"]):
-            heading_context = " > ".join(section_path) or str(document["metadata"]["title"])
-            prefix = f"Section: {heading_context}\n\n"
-            body_budget = max(100, CHUNK_SIZE - len(prefix))
-            splitter = RecursiveCharacterTextSplitter(
-                chunk_size=body_budget,
-                chunk_overlap=CHUNK_OVERLAP,
-                separators=["\n\n", "\n", ". ", " ", ""],
-                strip_whitespace=True,
-            )
 
-            fragments: list[str] = []
-            for block in _markdown_blocks(body):
-                fragments.extend(splitter.split_text(block))
+    for doc in documents:
+        split_texts = splitter.split_text(doc["content"])
+        if not split_texts:
+            split_texts = [doc["content"]]
 
-            grouped: list[str] = []
-            grouped_length = 0
-            for fragment in fragments:
-                separator_length = 2 if grouped else 0
-                if grouped and grouped_length + separator_length + len(fragment) > body_budget:
-                    pieces.append((heading_context, prefix + "\n\n".join(grouped)))
-                    grouped = []
-                    grouped_length = 0
-                    separator_length = 0
-                grouped.append(fragment)
-                grouped_length += separator_length + len(fragment)
-            if grouped:
-                pieces.append((heading_context, prefix + "\n\n".join(grouped)))
-
-        for index, (section_path, text) in enumerate(pieces):
-            text = text.strip()
-            if not text:
+        for index, text in enumerate(split_texts):
+            clean_text = text.strip()
+            if not clean_text:
                 continue
-            chunk_id = f"{document['id']}::chunk-{index}"
-            if chunk_id in seen_ids:
-                raise ValueError(f"Duplicate chunk ID: {chunk_id}")
-            seen_ids.add(chunk_id)
+
             chunk = {
-                "id": chunk_id,
-                "content": text,
+                "id": f"{doc['id']}::chunk-{index}",
+                "content": clean_text,
                 "metadata": {
-                    **document["metadata"],
+                    "source": doc["metadata"]["source"],
+                    "title": doc["metadata"]["title"],
+                    "doc_type": doc["metadata"]["doc_type"],
+                    "url": doc["metadata"]["url"],
                     "chunk_index": index,
-                    "section_path": section_path,
                 },
             }
             validate_document(chunk, require_chunk=True)
@@ -317,7 +285,12 @@ def run_pipeline() -> None:
     chunks = chunk_documents(documents)
     embedded_chunks = embed_chunks(chunks)
     index_to_vectorstore(embedded_chunks)
+<<<<<<< HEAD
     print(f"Indexed {len(embedded_chunks)} chunks from {len(documents)} documents")
+=======
+    print(f"Indexed {len(embedded_chunks)} chunks from {len(documents)} documents.")
+    return chunks
+>>>>>>> 726ca6ee44391917fa9199d0f20d95577e0280fa
 
 
 if __name__ == "__main__":

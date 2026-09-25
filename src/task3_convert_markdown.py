@@ -13,6 +13,8 @@ import re
 from pathlib import Path
 from typing import Any
 
+from markitdown import MarkItDown
+
 
 LANDING_DIR = Path(__file__).parent.parent / "data" / "landing"
 OUTPUT_DIR = Path(__file__).parent.parent / "data" / "standardized"

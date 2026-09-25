@@ -83,6 +83,17 @@ def _positive_bm25_scores(query_tokens: list[str], corpus: list[dict]) -> list[f
     return scores
 
 
+def _ensure_corpus() -> None:
+    """Tự động tải corpus từ Task 4 nếu chưa được nạp sẵn."""
+    global CORPUS
+    if not CORPUS:
+        try:
+            from src.task4_chunking_indexing import chunk_documents, load_documents
+            CORPUS = chunk_documents(load_documents())
+        except Exception:
+            pass
+
+
 def lexical_search(query: str, top_k: int = 10) -> list[dict]:
     """Return BM25 SearchResults, sorted by descending score."""
     if not isinstance(query, str) or not query.strip():

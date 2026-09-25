@@ -17,6 +17,16 @@ from urllib.parse import urlparse
 import requests
 
 
+from datetime import datetime
+import json
+from pathlib import Path
+import re
+
+import requests
+from bs4 import BeautifulSoup
+from markdownify import markdownify as md
+
+
 DATA_DIR = Path(__file__).parent.parent / "data" / "landing" / "news"
 REQUEST_TIMEOUT_SECONDS = 30
 MIN_CONTENT_LENGTH = 200
@@ -170,6 +180,7 @@ async def crawl_all() -> None:
 
     for index, url in enumerate(ARTICLE_URLS, 1):
         try:
+            print(f"Crawling ({index}/{len(ARTICLE_URLS)}): {url}...")
             article = await crawl_article(url)
             output = DATA_DIR / _filename_for_url(index, url)
             output.write_text(
@@ -186,4 +197,5 @@ async def crawl_all() -> None:
 
 
 if __name__ == "__main__":
+    import asyncio
     asyncio.run(crawl_all())

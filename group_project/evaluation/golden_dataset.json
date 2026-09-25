@@ -427,5 +427,78 @@
       "news/article_03_academic-test.md::chunk-2"
     ],
     "legacy_primary_chunk_id": "news/article_03_academic-test.md::chunk-2"
+    "question": "What are the four main assessment criteria for IELTS Writing?",
+    "expected_answer": "The four main assessment criteria for IELTS Writing are Task Achievement (for Task 1) / Task Response (for Task 2), Coherence and Cohesion, Lexical Resource, and Grammatical Range and Accuracy.",
+    "expected_context": "Each task is assessed independently on four criteria: Task Achievement / Task Response, Coherence and Cohesion, Lexical Resource, and Grammatical Range and Accuracy."
+  },
+  {
+    "question": "What is the minimum word count required for IELTS Writing Task 1 and Task 2?",
+    "expected_answer": "Candidates must write at least 150 words for Task 1 and at least 250 words for Task 2.",
+    "expected_context": "Candidates must write at least 150 words in Task 1 and at least 250 words in Task 2. Writing fewer words may result in a penalty."
+  },
+  {
+    "question": "How much time is recommended for IELTS Writing Task 1 and Task 2?",
+    "expected_answer": "It is recommended to spend about 20 minutes on Task 1 and about 40 minutes on Task 2.",
+    "expected_context": "Candidates are advised to spend 20 minutes on Task 1 and 40 minutes on Task 2, as Task 2 contributes twice as much to the total Writing band score."
+  },
+  {
+    "question": "Does Task 2 have more weight than Task 1 in the final IELTS Writing score?",
+    "expected_answer": "Yes, Task 2 carries more weight than Task 1; it counts for two-thirds (twice as much) of the overall Writing score.",
+    "expected_context": "Task 2 contributes twice as much as Task 1 to the overall IELTS Writing band score."
+  },
+  {
+    "question": "What are the requirements for Coherence and Cohesion at Band 7 in IELTS Writing?",
+    "expected_answer": "At Band 7, a candidate logically organises information and ideas, has a clear progression throughout, uses a range of cohesive devices appropriately, and presents a clear central topic within each paragraph.",
+    "expected_context": "Band 7 Coherence and Cohesion: logically organises information and ideas; there is clear progression throughout. Uses a range of cohesive devices appropriately. Presents a clear central topic within each paragraph."
+  },
+  {
+    "question": "What distinguishes Band 6 from Band 7 in Coherence and Cohesion?",
+    "expected_answer": "At Band 6, cohesive devices are used effectively but cohesion within or between sentences may be faulty or mechanical, and paragraphing may not always be logical. In contrast, Band 7 displays clear progression, appropriate use of cohesive devices, and clear central topics per paragraph.",
+    "expected_context": "Band 6: uses cohesive devices effectively, but cohesion within and/or between sentences may be faulty or mechanical; may not always use referencing clearly or appropriately."
+  },
+  {
+    "question": "What are the descriptors for Lexical Resource at Band 7?",
+    "expected_answer": "At Band 7 for Lexical Resource, the candidate uses a sufficient range of vocabulary to allow some flexibility and precision, uses less common lexical items with some awareness of style and collocation, and may produce occasional errors in word choice, spelling, or word formation.",
+    "expected_context": "Band 7 Lexical Resource: uses a sufficient range of vocabulary to allow some flexibility and precision. Uses less common lexical items with some awareness of style and collocation. May produce occasional errors in word choice, spelling and/or word formation."
+  },
+  {
+    "question": "What is required for Lexical Resource to achieve Band 8?",
+    "expected_answer": "At Band 8, the candidate uses a wide range of vocabulary fluently and flexibly to convey precise meanings, skillfully uses uncommon lexical items with rare inaccuracies, and produces very few errors in spelling or word formation.",
+    "expected_context": "Band 8 Lexical Resource: uses a wide range of vocabulary fluently and flexibly to convey precise meanings. Skillfully uses uncommon lexical items, but there may be occasional inaccuracies in word choice and collocation."
+  },
+  {
+    "question": "What characterizes Grammatical Range and Accuracy at Band 7?",
+    "expected_answer": "At Band 7, the candidate uses a variety of complex structures, produces frequent error-free sentences, and has good control of grammar and punctuation with only a few errors.",
+    "expected_context": "Band 7 Grammatical Range and Accuracy: uses a variety of complex structures. Produces frequent error-free sentences. Has good control of grammar and punctuation but may make a few errors."
+  },
+  {
+    "question": "Can candidates use bullet points or lists in IELTS Writing?",
+    "expected_answer": "No, answers must be written in full, connected sentences and paragraphs. Using bullet points or note form results in a severe penalty in Task Achievement / Task Response.",
+    "expected_context": "Candidates must write their answers in full, connected text. Note form or bullet points are not acceptable and will be penalised."
+  },
+  {
+    "question": "What is the difference between Task Achievement and Task Response in IELTS Writing?",
+    "expected_answer": "Task Achievement is used for Task 1 to assess how well the candidate summarises, describes, or reports visual information or letters. Task Response is used for Task 2 to assess how well the candidate formulates and supports an argument or position in response to an essay question.",
+    "expected_context": "Task 1 assesses Task Achievement (how well the candidate covers all parts of the prompt and highlights key features). Task 2 assesses Task Response (how well the essay addresses all aspects of the topic and develops a clear position)."
+  },
+  {
+    "question": "What is expected of candidates in IELTS Academic Writing Task 1?",
+    "expected_answer": "Candidates are asked to describe, summarise, or explain the information in a graph, table, chart, or diagram by selecting and reporting the main features, and making comparisons where relevant.",
+    "expected_context": "In Academic Writing Task 1, test takers must write a summary of at least 150 words in response to a particular graph, table, chart, or diagram, selecting and reporting main features and making comparisons."
+  },
+  {
+    "question": "What performance is described for Band 9 in Task Response for Task 2?",
+    "expected_answer": "At Band 9, the essay fully addresses all parts of the task, presents a fully developed position with relevant, fully extended, and well-supported ideas.",
+    "expected_context": "Band 9 Task Response: fully addresses all parts of the task. Presents a fully developed position in answer to the question with relevant, fully extended and well supported ideas."
+  },
+  {
+    "question": "How are memorised or plagiarised essays treated in IELTS Writing?",
+    "expected_answer": "Essays that contain memorised sections, pre-prepared templates, or plagiarised content are severely penalised, and those parts will be discounted during assessment.",
+    "expected_context": "Scripts or sections that are memorised, copied from the question paper, or plagiarised will not be assessed and will incur severe score penalties."
+  },
+  {
+    "question": "What are the common types of visual information presented in IELTS Academic Task 1?",
+    "expected_answer": "Common visual representations include bar charts, line graphs, pie charts, tables, process diagrams, and maps.",
+    "expected_context": "Task 1 inputs may include bar charts, line graphs, pie charts, tables, diagrams showing a process or how something works, or maps showing historical changes."
   }
 ]
